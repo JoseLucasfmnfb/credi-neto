@@ -7,7 +7,6 @@ import { ref } from 'vue'
 
 const supabase = useSupabaseClient()
 
-
 const email = ref('')
 const password = ref('')
 const fullName = ref('')
@@ -37,7 +36,9 @@ async function register() {
         return
     }
 
-    successMessage.value = 'Cadastro realizado! Verifique seu email para confirmar a conta.'
+    // Como vamos DESATIVAR confirmação de email no Supabase,
+    // o usuário já estará criado e poderá logar direto
+    successMessage.value = 'Cadastro realizado com sucesso! Agora você já pode entrar no sistema.'
 }
 </script>
 
@@ -62,7 +63,8 @@ async function register() {
                     v-model="fullName"
                     type="text"
                     required
-                    class="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-[#D85A1A] focus:outline-none"
+                    class="w-full mt-1 p-2 border rounded
+                           focus:ring-2 focus:ring-[#D85A1A] focus:outline-none"
                 />
             </div>
 
@@ -72,18 +74,15 @@ async function register() {
                     v-model="email"
                     type="email"
                     required
-                    class="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-[#D85A1A] focus:outline-none"
+                    class="w-full mt-1 p-2 border rounded
+                           focus:ring-2 focus:ring-[#D85A1A] focus:outline-none"
                 />
             </div>
 
+            <!-- SENHA COM OLHO 👁️ -->
             <div>
                 <label class="block text-sm font-medium">Senha</label>
-                <input
-                    v-model="password"
-                    type="password"
-                    required
-                    class="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-[#D85A1A] focus:outline-none"
-                />
+                <PasswordInput v-model="password" />
             </div>
 
             <p v-if="errorMessage" class="text-red-600 text-sm">
