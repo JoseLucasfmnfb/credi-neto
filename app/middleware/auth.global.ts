@@ -1,35 +1,32 @@
 export default defineNuxtRouteMiddleware(async (to) => {
-    const user = useSupabaseUser()
     const supabase = useSupabaseClient()
 
-    // Rotas públicas
-    const publicRoutes = ['/', '/register', '/confirm']
+    const {
+        data: { user }
+    } = await supabase.auth.getUser()
 
-    if (!user.value && !publicRoutes.includes(to.path)) {
+    // 🔒 Não logado → volta para login
+    if (!user) {
         return navigateTo('/')
     }
 
-    if (user.value) {
-        const { data } = await supabase
+    // 🔐 Rotas administrativas (prefixo /admin)
+    if (to.path.startsWith('/admin')) {
+        const { data, error } = await supabase
             .from('profiles')
             .select('role')
-            .eq('id', user.value.id)
+            .eq('id', user.id)
             .single()
 
-        const role = data?.role
-
-        // Proteção de rotas admin
-        if (to.path.startsWith('/admin')) {
-            if (!['super_admin', 'admin', 'funcionario'].includes(role)) {
-                return navigateTo('/home')
-            }
+        if (error || !data) {
+            return navigateTo('/home')
         }
 
-        // Proteção de rotas exclusivas de admin
-        if (to.path.startsWith('/roles')) {
-            if (!['super_admin', 'admin'].includes(role)) {
-                return navigateTo('/home')
-            }
+        const role = data.role
+
+        // Apenas funcionario, admin e super_admin entram em /admin/*
+        if (!['funcionario', 'admin', 'super_admin'].includes(role)) {
+            return navigateTo('/home')
         }
     }
 })
