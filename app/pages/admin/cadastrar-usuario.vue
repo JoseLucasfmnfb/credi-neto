@@ -1,7 +1,7 @@
 <script setup lang="ts">
-definePageMeta({})
+// Forced HMR update
 
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const supabase = useSupabaseClient()
 const authUser = useSupabaseUser()
@@ -21,9 +21,7 @@ const successMessage = ref('')
    CARREGAR MEU ROLE
 ========================= */
 async function carregarMeuRole() {
-    // Aguarda o usuário estar disponível
     if (!authUser.value) {
-        // pequena espera e tenta novamente
         setTimeout(carregarMeuRole, 200)
         return
     }
@@ -37,13 +35,11 @@ async function carregarMeuRole() {
     if (!error && data) {
         meuRole.value = data.role
 
-        // funcionario só pode criar cliente
         if (meuRole.value === 'funcionario') {
             role.value = 'cliente'
         }
     }
 }
-
 
 /* =========================
    CADASTRAR USUÁRIO
@@ -52,49 +48,58 @@ async function cadastrarUsuario() {
     errorMessage.value = ''
     successMessage.value = ''
 
-
     if (!fullName.value || !email.value || !password.value) {
         errorMessage.value = 'Preencha todos os campos obrigatórios.'
         return
     }
-
 
     if (password.value.length < 6) {
         errorMessage.value = 'A senha deve ter pelo menos 6 caracteres.'
         return
     }
 
-
     loading.value = true
 
-
     try {
-        const { error } = await $fetch('/api/admin/criar-usuario', {
+        // 🔐 PEGAR SESSÃO
+        const {
+            data: { session }
+        } = await supabase.auth.getSession()
+
+        if (!session) {
+            errorMessage.value = 'Usuário não autenticado.'
+            loading.value = false
+            return
+        }
+
+        // 🚀 CHAMAR API COM TOKEN
+        await $fetch('/api/admin/criar-usuario', {
             method: 'POST',
             body: {
                 fullName: fullName.value,
                 email: email.value,
                 password: password.value,
                 role: role.value
+            },
+            headers: {
+                Authorization: `Bearer ${session.access_token}`
             }
         })
 
-
-        if (error) throw error
-
-
         successMessage.value = 'Usuário cadastrado com sucesso!'
 
-
+        // limpar form
         fullName.value = ''
         email.value = ''
         password.value = ''
         role.value = meuRole.value === 'funcionario' ? 'cliente' : 'cliente'
 
-
     } catch (err: any) {
         console.error(err)
-        errorMessage.value = 'Erro ao cadastrar usuário.'
+        errorMessage.value =
+            err?.data?.statusMessage ||
+            err?.message ||
+            'Erro ao cadastrar usuário.'
     } finally {
         loading.value = false
     }
@@ -146,8 +151,11 @@ onMounted(() => {
                     Cargo
                 </label>
 
-                <select v-model="role" :disabled="meuRole === 'funcionario'"
-                    class="form-input disabled:opacity-50 disabled:cursor-not-allowed">
+                <select
+                    v-model="role"
+                    :disabled="meuRole === 'funcionario'"
+                    class="form-input disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                     <option value="cliente">Cliente</option>
                     <option v-if="meuRole !== 'funcionario'" value="funcionario">Funcionário</option>
                     <option v-if="meuRole === 'admin' || meuRole === 'super_admin'" value="admin">Admin</option>
@@ -165,10 +173,14 @@ onMounted(() => {
             </p>
 
             <!-- BOTÃO -->
-            <button @click="cadastrarUsuario" :disabled="loading" class="bg-[#D85A1A] text-white px-6 py-2 rounded
+            <button
+                @click="cadastrarUsuario"
+                :disabled="loading"
+                class="bg-[#D85A1A] text-white px-6 py-2 rounded
                        transition-all duration-300
                        hover:bg-[#B94814] hover:shadow-lg
-                       disabled:opacity-50">
+                       disabled:opacity-50"
+            >
                 {{ loading ? 'Criando...' : 'Cadastrar usuário' }}
             </button>
 
@@ -182,10 +194,8 @@ onMounted(() => {
     padding: 0.5rem;
     border-radius: 0.375rem;
     border: 1px solid #cbd5e1;
-
     background-color: white;
     color: #111827;
-
     outline: none;
     transition: box-shadow 0.2s, border-color 0.2s;
 }

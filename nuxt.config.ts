@@ -3,19 +3,19 @@ import { config } from 'dotenv'
 config({ path: '.env' })
 
 export default defineNuxtConfig({
-  compatibilityDate: '2024-04-03',
-  devtools: { enabled: true },
+    compatibilityDate: '2024-04-03',
+    devtools: { enabled: true },
 
-  modules: [
-    '@nuxtjs/tailwindcss',
-    '@nuxtjs/supabase'
-  ],
+    modules: [
+        '@nuxtjs/tailwindcss',
+        '@nuxtjs/supabase'
+    ],
 
-  supabase: {
-    redirect: false
-  },
+    supabase: {
+        redirect: false
+    },
 
-  typescript: {
-    strict: true
-  }
+    typescript: {
+        strict: true
+    }
 })

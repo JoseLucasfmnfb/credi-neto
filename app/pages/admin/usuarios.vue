@@ -1,17 +1,32 @@
 <script setup lang="ts">
-definePageMeta({
-    //middleware: 'auth'
-})
+// Forced HMR update
 
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import type { Profile } from '~/types'
 
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
+const toast = useToast()
 
-const usuarios = ref<any[]>([])
+const usuarios = ref<Profile[]>([])
 const loading = ref(false)
-const errorMessage = ref('')
-const successMessage = ref('')
+
+const myRole = ref<string | null>(null)
+
+/* =========================
+   BUSCAR MINHA ROLE
+========================= */
+async function buscarMinhaRole() {
+    if (!user.value) return
+
+    const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.value.id)
+        .single()
+
+    myRole.value = data?.role || null
+}
 
 /* =========================
    CARREGAR USUÁRIOS
@@ -20,18 +35,20 @@ async function carregarUsuarios() {
     if (!user.value) return
 
     loading.value = true
-    errorMessage.value = ''
 
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email, role, created_at')
+        .select(`
+            id, full_name, email, role, created_at,
+            credit_accounts(balance)
+        `)
         .order('full_name')
 
     loading.value = false
 
     if (error) {
         console.error('Erro ao buscar usuários:', error)
-        errorMessage.value = 'Erro ao carregar usuários.'
+        toast.error('Erro ao carregar usuários.')
         return
     }
 
@@ -42,8 +59,16 @@ async function carregarUsuarios() {
    ATUALIZAR ROLE
 ========================= */
 async function atualizarRole(userId: string, novoRole: string) {
-    successMessage.value = ''
-    errorMessage.value = ''
+    if (!myRole.value) return
+
+    // FUNCIONÁRIO NÃO PODE PROMOVER
+    if (
+        myRole.value === 'funcionario' &&
+        (novoRole === 'admin' || novoRole === 'super_admin')
+    ) {
+        toast.error('Você não tem permissão para promover usuários.')
+        return
+    }
 
     const { error } = await supabase
         .from('profiles')
@@ -52,19 +77,28 @@ async function atualizarRole(userId: string, novoRole: string) {
 
     if (error) {
         console.error('Erro ao atualizar role:', error)
-        errorMessage.value = 'Erro ao atualizar cargo do usuário.'
+        toast.error('Erro ao atualizar cargo do usuário.')
         return
     }
 
-    successMessage.value = 'Cargo atualizado com sucesso!'
+    toast.success('Cargo atualizado com sucesso!')
     carregarUsuarios()
 }
 
 /* =========================
-   ON MOUNT
+   INIT
 ========================= */
+async function init() {
+    await buscarMinhaRole()
+    await carregarUsuarios()
+}
+
+watch(user, () => {
+    if (user.value) init()
+})
+
 onMounted(() => {
-    carregarUsuarios()
+    if (user.value) init()
 })
 </script>
 
@@ -79,23 +113,20 @@ onMounted(() => {
             </p>
         </div>
 
-        <!-- MENSAGENS -->
-        <p v-if="errorMessage" class="text-red-400 text-sm">
-            {{ errorMessage }}
-        </p>
-
-        <p v-if="successMessage" class="text-green-400 text-sm">
-            {{ successMessage }}
+        <!-- LOADING -->
+        <p v-if="loading" class="text-gray-400 text-sm">
+            Carregando usuários...
         </p>
 
         <!-- TABELA -->
-        <div class="bg-slate-800 rounded-xl shadow-lg overflow-hidden">
+        <div v-if="!loading" class="bg-slate-800 rounded-xl shadow-lg overflow-hidden">
 
             <table class="w-full text-sm">
                 <thead class="bg-slate-700 text-white">
                     <tr>
                         <th class="text-left px-4 py-3">Nome</th>
                         <th class="text-left px-4 py-3">Email</th>
+                        <th class="text-left px-4 py-3">Saldo</th>
                         <th class="text-left px-4 py-3">Cargo</th>
                         <th class="text-left px-4 py-3">Criado em</th>
                     </tr>
@@ -117,10 +148,16 @@ onMounted(() => {
                             {{ u.email }}
                         </td>
 
+                        <!-- BALANCE -->
+                        <td class="px-4 py-3 font-medium" :class="u.credit_accounts?.[0]?.balance < 0 ? 'text-red-400' : 'text-green-400'">
+                            R$ {{ u.credit_accounts?.[0]?.balance?.toFixed(2).replace('.', ',') || '0,00' }}
+                        </td>
+
                         <!-- ROLE -->
                         <td class="px-4 py-3">
                             <select
                                 :value="u.role"
+                                :disabled="u.id === user?.id"
                                 @change="atualizarRole(u.id, ($event.target as HTMLSelectElement).value)"
                                 class="form-input-small"
                             >
@@ -133,7 +170,7 @@ onMounted(() => {
 
                         <!-- DATA -->
                         <td class="px-4 py-3 text-gray-400">
-                            {{ new Date(u.created_at).toLocaleDateString() }}
+                            {{ u.created_at ? new Date(u.created_at).toLocaleDateString() : '—' }}
                         </td>
                     </tr>
 
@@ -151,17 +188,12 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* =========================
-   INPUT PADRÃO (BRANCO)
-========================= */
 .form-input-small {
     padding: 0.35rem 0.5rem;
     border-radius: 0.375rem;
     border: 1px solid #cbd5e1;
-
     background-color: white;
     color: #111827;
-
     outline: none;
     transition: box-shadow 0.2s, border-color 0.2s;
     font-size: 0.875rem;

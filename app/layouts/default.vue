@@ -113,6 +113,22 @@ async function logout() {
                     👥 Usuários
                 </NuxtLink>
 
+                <NuxtLink to="/admin/historico" class="block px-3 py-2 rounded transition-all duration-300" :class="{
+                    'hover:bg-[#B94814]': theme === 'orange',
+                    'hover:bg-gray-700': theme === 'dark',
+                    'hover:bg-gray-400': theme === 'neutral'
+                }">
+                    📜 Histórico da Loja
+                </NuxtLink>
+
+                <NuxtLink to="/admin/banners" class="block px-3 py-2 rounded transition-all duration-300" :class="{
+                    'hover:bg-[#B94814]': theme === 'orange',
+                    'hover:bg-gray-700': theme === 'dark',
+                    'hover:bg-gray-400': theme === 'neutral'
+                }">
+                    📢 Gestão de Banners
+                </NuxtLink>
+
                 <NuxtLink to="/admin/cadastrar-usuario" class="block px-3 py-2 rounded transition-all duration-300"
                     :class="{
                         'hover:bg-[#B94814]': theme === 'orange',
@@ -218,7 +234,7 @@ async function logout() {
             </header>
 
             <!-- CONTEÚDO -->
-            <main class="flex-1 p-6" :class="{
+            <main class="flex-1 p-6 md:pb-32" :class="{
                 'bg-gray-100': theme === 'orange' || theme === 'neutral',
                 'bg-gray-900 text-white': theme === 'dark'
             }">
@@ -227,5 +243,7 @@ async function logout() {
 
         </div>
 
+        <AppToast />
+        <AdsBanner />
     </div>
 </template>

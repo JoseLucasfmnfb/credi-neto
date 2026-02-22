@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import type { Transaction } from '~/types'
 
 const supabase = useSupabaseClient()
+const toast = useToast()
 
 const loading = ref(true)
 const balance = ref<number | null>(null)
-const transactions = ref<any[]>([])
-const errorMessage = ref('')
+const transactions = ref<Transaction[]>([])
 
 async function fetchSaldo() {
     try {
         const { data: { user } } = await supabase.auth.getUser()
 
         if (!user) {
-            errorMessage.value = 'Usuário não autenticado.'
+            toast.error('Usuário não autenticado.')
             return
         }
 
@@ -28,7 +29,7 @@ async function fetchSaldo() {
 
         if (accountError) {
             console.error('ERRO AO BUSCAR SALDO:', accountError)
-            errorMessage.value = 'Erro ao buscar saldo.'
+            toast.error('Erro ao buscar saldo.')
         } else {
             balance.value = account?.balance ?? 0
         }
@@ -49,7 +50,7 @@ async function fetchSaldo() {
 
     } catch (err) {
         console.error('ERRO GERAL:', err)
-        errorMessage.value = 'Erro inesperado ao carregar dados.'
+        toast.error('Erro inesperado ao carregar dados.')
     } finally {
         loading.value = false
     }
@@ -71,11 +72,6 @@ onMounted(() => {
             <p class="text-gray-500">
                 Consulte seu saldo atual e o histórico de movimentações
             </p>
-        </div>
-
-        <!-- ERRO -->
-        <div v-if="errorMessage" class="bg-red-100 text-red-700 p-4 rounded">
-            {{ errorMessage }}
         </div>
 
         <!-- LOADING -->

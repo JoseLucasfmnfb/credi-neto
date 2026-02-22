@@ -1,14 +1,14 @@
 <script setup lang="ts">
-definePageMeta({
-    middleware: 'auth'
-})
+// Forced HMR update
 
 import { ref, onMounted } from 'vue'
+import type { Profile } from '~/types'
 
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
+const toast = useToast()
 
-const clientes = ref<any[]>([])
+const clientes = ref<Profile[]>([])
 const clienteSelecionado = ref('')
 const tipo = ref('credito')
 const origem = ref('manual')
@@ -16,8 +16,6 @@ const valor = ref('')
 const observacao = ref('')
 
 const loading = ref(false)
-const errorMessage = ref('')
-const successMessage = ref('')
 
 /* =========================
    CARREGAR CLIENTES
@@ -33,7 +31,7 @@ async function carregarClientes() {
 
     if (error) {
         console.error('Erro ao buscar clientes:', error)
-        errorMessage.value = 'Erro ao carregar clientes.'
+        toast.error('Erro ao carregar clientes.')
         return
     }
 
@@ -44,68 +42,39 @@ async function carregarClientes() {
    CONFIRMAR MOVIMENTAÇÃO
 ========================= */
 async function confirmarMovimentacao() {
-    errorMessage.value = ''
-    successMessage.value = ''
-
     if (!clienteSelecionado.value || !valor.value) {
-        errorMessage.value = 'Selecione um cliente e informe um valor.'
+        toast.error('Selecione um cliente e informe um valor.')
         return
     }
 
     const valorNumerico = Number(valor.value)
 
     if (valorNumerico <= 0) {
-        errorMessage.value = 'O valor deve ser maior que zero.'
+        toast.error('O valor deve ser maior que zero.')
         return
     }
 
     if (!user.value) {
-        errorMessage.value = 'Usuário não autenticado.'
+        toast.error('Usuário não autenticado.')
         return
     }
 
     loading.value = true
 
     try {
-        /* Inserir transação */
-        const { error: erroTransacao } = await supabase
-            .from('transactions')
-            .insert({
-                user_id: clienteSelecionado.value,
-                type: tipo.value,
-                origin: origem.value,
-                amount: valorNumerico,
-                description: observacao.value || 'Movimentação manual',
-                performed_by: user.value.id
-            })
+        /* Disparar transação atômica no Banco (RPC) */
+        const { error: erroTransacao } = await supabase.rpc('processar_transacao', {
+            p_user_id: clienteSelecionado.value,
+            p_type: tipo.value,
+            p_origin: origem.value,
+            p_amount: valorNumerico,
+            p_description: observacao.value || 'Movimentação manual',
+            p_performed_by: user.value.id
+        })
 
         if (erroTransacao) throw erroTransacao
 
-        /* Atualizar saldo */
-        const { data: conta, error: erroConta } = await supabase
-            .from('credit_accounts')
-            .select('balance')
-            .eq('user_id', clienteSelecionado.value)
-            .single()
-
-        if (erroConta) throw erroConta
-
-        let novoSaldo = conta.balance
-
-        if (tipo.value === 'credito') {
-            novoSaldo += valorNumerico
-        } else {
-            novoSaldo -= valorNumerico
-        }
-
-        const { error: erroUpdate } = await supabase
-            .from('credit_accounts')
-            .update({ balance: novoSaldo })
-            .eq('user_id', clienteSelecionado.value)
-
-        if (erroUpdate) throw erroUpdate
-
-        successMessage.value = 'Movimentação realizada com sucesso!'
+        toast.success('Movimentação realizada com sucesso!')
 
         // Limpar formulário
         clienteSelecionado.value = ''
@@ -115,7 +84,7 @@ async function confirmarMovimentacao() {
         origem.value = 'manual'
     } catch (err: any) {
         console.error(err)
-        errorMessage.value = 'Erro ao realizar movimentação.'
+        toast.error('Erro ao realizar movimentação.')
     } finally {
         loading.value = false
     }
@@ -221,15 +190,6 @@ onMounted(() => {
                     class="form-input"
                 ></textarea>
             </div>
-
-            <!-- MENSAGENS -->
-            <p v-if="errorMessage" class="text-red-400 text-sm">
-                {{ errorMessage }}
-            </p>
-
-            <p v-if="successMessage" class="text-green-400 text-sm">
-                {{ successMessage }}
-            </p>
 
             <!-- BOTÃO -->
             <button

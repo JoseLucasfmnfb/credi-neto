@@ -1,6 +1,5 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
 
-
 export default defineEventHandler(async (event) => {
     const body = await readBody(event)
 
@@ -13,49 +12,10 @@ export default defineEventHandler(async (event) => {
     }
 
 
-    const client = await serverSupabaseServiceRole(event)
+    // Recupera perfil e dependências com a validação do header já resolvida.
+    const { role: creatorRole, client } = await requireUserRole(event)
 
-
-    // Descobrir quem está criando
-    const authHeader = getHeader(event, 'authorization')
-
-
-    if (!authHeader) {
-        throw createError({ statusCode: 401, statusMessage: 'Não autenticado' })
-    }
-
-
-    const token = authHeader.replace('Bearer ', '')
-
-
-    const { data: userData, error: userError } = await client.auth.getUser(token)
-
-
-    if (userError || !userData.user) {
-        throw createError({ statusCode: 401, statusMessage: 'Usuário inválido' })
-    }
-
-
-    const creatorId = userData.user.id
-
-
-    // Buscar role de quem está criando
-    const { data: creatorProfile, error: creatorError } = await client
-        .from('profiles')
-        .select('role')
-        .eq('id', creatorId)
-        .single()
-
-
-    if (creatorError || !creatorProfile) {
-        throw createError({ statusCode: 403, statusMessage: 'Sem permissão' })
-    }
-
-
-    const creatorRole = creatorProfile.role
-
-
-    // Regras de permissão
+    // Regras de negócio de permissão
     if (creatorRole === 'funcionario' && role !== 'cliente') {
         throw createError({ statusCode: 403, statusMessage: 'Funcionário só pode criar clientes' })
     }

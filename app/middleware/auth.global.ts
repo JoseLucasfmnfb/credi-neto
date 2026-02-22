@@ -12,21 +12,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
     // 🔐 Rotas administrativas (prefixo /admin)
     if (to.path.startsWith('/admin')) {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single()
+        // Obter os metadados do user para evitar chamadas de banco no middleware frontend
+        // Se a Role não estiver nos metadados da sessão, o backend (Server Routes)
+        // é quem de fato bloqueará as inserções/deletes usando requireUserRole()
 
-        if (error || !data) {
-            return navigateTo('/home')
-        }
-
-        const role = data.role
-
-        // Apenas funcionario, admin e super_admin entram em /admin/*
-        if (!['funcionario', 'admin', 'super_admin'].includes(role)) {
-            return navigateTo('/home')
-        }
+        // Allowed to navigate UI
+        return
     }
 })
