@@ -59,17 +59,27 @@ async function confirmarMovimentacao() {
         return
     }
 
+    console.log('DEBUG USER OBJECT:', user.value)
+    
+    // Garantindo que temos o userId
+    const adminId = user.value.id || (user.value as any).user?.id || (user.value as any).sub
+    if (!adminId) {
+        console.error('ID do administrador não encontrado no objeto de usuário:', user.value)
+        toast.error('Falha de sessão: não foi possível identificar o operador.')
+        return
+    }
+
     loading.value = true
 
     try {
         /* Disparar transação atômica no Banco (RPC) */
-        const { error: erroTransacao } = await supabase.rpc('processar_transacao', {
+        const { error: erroTransacao } = await supabase.rpc('move_credit', {
             p_user_id: clienteSelecionado.value,
             p_type: tipo.value,
             p_origin: origem.value,
             p_amount: valorNumerico,
             p_description: observacao.value || 'Movimentação manual',
-            p_performed_by: user.value.id
+            p_performed_by: adminId
         })
 
         if (erroTransacao) throw erroTransacao

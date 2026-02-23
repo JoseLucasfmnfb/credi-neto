@@ -46,40 +46,35 @@ onMounted(() => {
 <template>
     <!-- SÓ RENDERIZA SE HOUVER BANNER ATIVO -->
     <div v-if="banner">
-        
+
         <!-- =========================
              MOBILE: MODAL POPUP
              (Aparece 1 vez sobrepondo a tela)
         ========================= -->
-        <div 
-            v-if="isMobile && showMobileModal" 
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 transition-opacity"
-        >
+        <div v-if="isMobile && showMobileModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 transition-opacity">
             <div class="relative w-full max-w-sm bg-white rounded-lg shadow-2xl overflow-hidden animate-fade-in-up">
-                
+
                 <!-- Botão Fechar -->
-                <button 
-                    @click="showMobileModal = false" 
+                <button @click="showMobileModal = false"
                     class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-black/50 text-white rounded-full hover:bg-black transition z-10"
-                    title="Fechar Propaganda"
-                >
+                    title="Fechar Propaganda">
                     ✕
                 </button>
 
                 <!-- Banner Conteúdo -->
-                <a :href="banner.redirect_url || '#'" :target="banner.redirect_url ? '_blank' : '_self'" class="block relative group">
-                    <img 
-                        :src="banner.mobile_image_url || banner.image_url" 
-                        :alt="banner.title" 
-                        class="w-full h-auto max-h-[60vh] object-contain bg-gray-900 group-hover:opacity-90 transition"
-                    />
-                    
+                <component :is="banner.redirect_url ? 'a' : 'div'" :href="banner.redirect_url || undefined"
+                    :target="banner.redirect_url ? '_blank' : undefined" class="block relative group">
+                    <img :src="banner.mobile_image_url || banner.image_url" :alt="banner.title"
+                        class="w-full h-auto max-h-[60vh] object-contain bg-gray-900 group-hover:opacity-90 transition" />
+
                     <!-- Aviso Publicidade Escrito Inferior -->
                     <div class="flex items-center justify-between p-3 bg-gray-50 border-t border-gray-100">
                         <span class="text-xs text-gray-500 font-medium">Publicidade</span>
-                        <span v-if="banner.redirect_url" class="text-xs text-blue-500 font-semibold group-hover:underline">Visitar ›</span>
+                        <span v-if="banner.redirect_url"
+                            class="text-xs text-blue-500 font-semibold group-hover:underline">Visitar ›</span>
                     </div>
-                </a>
+                </component>
 
             </div>
         </div>
@@ -88,27 +83,19 @@ onMounted(() => {
              DESKTOP: FOOTER FIXO
              (Fica na base da tela o tempo todo)
         ========================= -->
-        <div 
-            v-if="!isMobile" 
-            class="hidden md:flex fixed bottom-0 left-64 right-0 z-40 bg-slate-900 border-t border-slate-700 shadow-lg justify-center transition group"
-            style="height: 90px;"
-        >
-            <a 
-                :href="banner.redirect_url || '#'" 
-                :target="banner.redirect_url ? '_blank' : '_self'" 
-                class="block w-full h-full relative"
-            >
+        <div v-if="!isMobile"
+            class="hidden md:flex fixed bottom-0 left-64 right-0 z-40 bg-slate-900 border-t border-slate-700 shadow-lg justify-center transition group h-[90px]">
+            <component :is="banner.redirect_url ? 'a' : 'div'" :href="banner.redirect_url || undefined"
+                :target="banner.redirect_url ? '_blank' : undefined" class="block w-full h-full relative">
                 <!-- Selo Pequeno de Ad -->
-                <div class="absolute top-0 left-0 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-br opacity-50 group-hover:opacity-100 transition z-10">
+                <div
+                    class="absolute top-0 left-0 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-br opacity-50 group-hover:opacity-100 transition z-10">
                     AD
                 </div>
-                
-                <img 
-                    :src="banner.image_url" 
-                    :alt="banner.title" 
-                    class="w-full h-full object-cover object-center transition duration-300"
-                />
-            </a>
+
+                <img :src="banner.image_url" :alt="banner.title"
+                    class="w-full h-full object-cover object-center transition duration-300" />
+            </component>
         </div>
 
     </div>
@@ -124,6 +111,7 @@ onMounted(() => {
         opacity: 0;
         transform: translateY(20px) scale(0.95);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);

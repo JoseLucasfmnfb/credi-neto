@@ -6,8 +6,6 @@ import { ref, onMounted } from 'vue'
 const supabase = useSupabaseClient()
 const authUser = useSupabaseUser()
 
-const meuRole = ref<'cliente' | 'funcionario' | 'admin' | 'super_admin'>('cliente')
-
 const fullName = ref('')
 const email = ref('')
 const password = ref('')
@@ -17,29 +15,7 @@ const loading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
-/* =========================
-   CARREGAR MEU ROLE
-========================= */
-async function carregarMeuRole() {
-    if (!authUser.value) {
-        setTimeout(carregarMeuRole, 200)
-        return
-    }
-
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', authUser.value.id)
-        .single()
-
-    if (!error && data) {
-        meuRole.value = data.role
-
-        if (meuRole.value === 'funcionario') {
-            role.value = 'cliente'
-        }
-    }
-}
+const { role: meuRole, fetchRole: carregarMeuRole } = useUserRole()
 
 /* =========================
    CADASTRAR USUÁRIO
@@ -153,11 +129,11 @@ onMounted(() => {
 
                 <select
                     v-model="role"
-                    :disabled="meuRole === 'funcionario'"
+                    :disabled="meuRole === 'funcionario' || meuRole === 'cliente'"
                     class="form-input disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <option value="cliente">Cliente</option>
-                    <option v-if="meuRole !== 'funcionario'" value="funcionario">Funcionário</option>
+                    <option v-if="meuRole === 'super_admin' || meuRole === 'admin'" value="funcionario">Funcionário</option>
                     <option v-if="meuRole === 'admin' || meuRole === 'super_admin'" value="admin">Admin</option>
                     <option v-if="meuRole === 'super_admin'" value="super_admin">Super Admin</option>
                 </select>

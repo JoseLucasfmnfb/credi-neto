@@ -5,8 +5,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
         data: { user }
     } = await supabase.auth.getUser()
 
-    // 🔒 Não logado → volta para login
-    if (!user) {
+    // Rotas públicas que não exigem login
+    const publicRoutes = ['/', '/register', '/forgot-password']
+
+    // 🔒 Não logado → volta para login (se não estiver em rota pública)
+    if (!user && !publicRoutes.includes(to.path)) {
         return navigateTo('/')
     }
 

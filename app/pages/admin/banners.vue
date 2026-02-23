@@ -17,6 +17,11 @@ const desktopFile = ref<File | null>(null)
 const mobileFile = ref<File | null>(null)
 const uploading = ref(false)
 
+const isEditing = ref(false)
+const editingBannerId = ref<string | null>(null)
+const oldDesktopUrl = ref('')
+const oldMobileUrl = ref('')
+
 /* =========================
    CARREGAR BANNERS
 ========================= */
@@ -56,7 +61,12 @@ function onMobileFileChange(e: Event) {
 }
 
 async function cadastrarBanner() {
-    if (!title.value || !desktopFile.value || !mobileFile.value) {
+    if (!title.value) {
+        toast.error('Preencha o Título adequadamente.')
+        return
+    }
+
+    if (!isEditing.value && (!desktopFile.value || !mobileFile.value)) {
         toast.error('Preencha o Título e selecione as duas Imagens (Desktop e Mobile).')
         return
     }
@@ -64,65 +74,112 @@ async function cadastrarBanner() {
     uploading.value = true
 
     try {
+        let desktopUrl = oldDesktopUrl.value
+        let mobileUrl = oldMobileUrl.value
+
         // --- UPLOAD DESKTOP ---
-        const desktopExt = desktopFile.value.name.split('.').pop()
-        const desktopFileName = `desktop_${Math.random()}.${desktopExt}`
+        if (desktopFile.value) {
+            const desktopExt = desktopFile.value.name.split('.').pop()
+            const desktopFileName = `desktop_${Math.random()}.${desktopExt}`
 
-        const { error: error1 } = await supabase.storage
-            .from('banners')
-            .upload(desktopFileName, desktopFile.value)
+            const { error: error1 } = await supabase.storage
+                .from('banners')
+                .upload(desktopFileName, desktopFile.value)
 
-        if (error1) throw error1
+            if (error1) throw error1
 
-        const { data: { publicUrl: desktopUrl } } = supabase.storage
-            .from('banners')
-            .getPublicUrl(desktopFileName)
+            const { data: publicUrlData1 } = supabase.storage
+                .from('banners')
+                .getPublicUrl(desktopFileName)
+            
+            desktopUrl = publicUrlData1.publicUrl
+        }
 
         // --- UPLOAD MOBILE ---
-        const mobileExt = mobileFile.value.name.split('.').pop()
-        const mobileFileName = `mobile_${Math.random()}.${mobileExt}`
+        if (mobileFile.value) {
+            const mobileExt = mobileFile.value.name.split('.').pop()
+            const mobileFileName = `mobile_${Math.random()}.${mobileExt}`
 
-        const { error: error2 } = await supabase.storage
-            .from('banners')
-            .upload(mobileFileName, mobileFile.value)
+            const { error: error2 } = await supabase.storage
+                .from('banners')
+                .upload(mobileFileName, mobileFile.value)
 
-        if (error2) throw error2
+            if (error2) throw error2
 
-        const { data: { publicUrl: mobileUrl } } = supabase.storage
-            .from('banners')
-            .getPublicUrl(mobileFileName)
+            const { data: publicUrlData2 } = supabase.storage
+                .from('banners')
+                .getPublicUrl(mobileFileName)
+            
+            mobileUrl = publicUrlData2.publicUrl
+        }
 
-        // 3. Salvar no Banco (Tabela banners)
-        const { error: dbError } = await supabase
-            .from('banners')
-            .insert({
-                title: title.value,
-                image_url: desktopUrl,           // Guarda Desktop
-                mobile_image_url: mobileUrl,     // Guarda Mobile
-                redirect_url: redirectUrl.value || null,
-                active: true // Por padrão já cadastra ativo
-            })
+        if (isEditing.value && editingBannerId.value) {
+            // Update
+            const { error: dbError } = await supabase
+                .from('banners')
+                .update({
+                    title: title.value,
+                    image_url: desktopUrl,
+                    mobile_image_url: mobileUrl,
+                    redirect_url: redirectUrl.value || null
+                })
+                .eq('id', editingBannerId.value)
 
-        if (dbError) throw dbError
+            if (dbError) throw dbError
+            toast.success('Propaganda editada com sucesso!')
+        } else {
+            // Insert
+            const { error: dbError } = await supabase
+                .from('banners')
+                .insert({
+                    title: title.value,
+                    image_url: desktopUrl,
+                    mobile_image_url: mobileUrl,
+                    redirect_url: redirectUrl.value || null,
+                    active: true
+                })
 
-        toast.success('Propaganda dupla criada com sucesso!')
+            if (dbError) throw dbError
+            toast.success('Propaganda dupla criada com sucesso!')
+        }
         
-        // Limpar Formulário
-        title.value = ''
-        redirectUrl.value = ''
-        desktopFile.value = null
-        mobileFile.value = null
-        ;(document.getElementById('desktopInput') as HTMLInputElement).value = ''
-        ;(document.getElementById('mobileInput') as HTMLInputElement).value = ''
-
+        cancelarEdicao()
         carregarBanners()
 
     } catch (err: any) {
         console.error(err)
-        toast.error('Ocorreu um erro no upload. Verifique as permissões de storage.')
+        toast.error('Ocorreu um erro ao salvar o banner.')
     } finally {
         uploading.value = false
     }
+}
+
+function editarBanner(banner: any) {
+    isEditing.value = true
+    editingBannerId.value = banner.id
+    title.value = banner.title
+    redirectUrl.value = banner.redirect_url || ''
+    oldDesktopUrl.value = banner.image_url
+    oldMobileUrl.value = banner.mobile_image_url || banner.image_url
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function cancelarEdicao() {
+    isEditing.value = false
+    editingBannerId.value = null
+    title.value = ''
+    redirectUrl.value = ''
+    oldDesktopUrl.value = ''
+    oldMobileUrl.value = ''
+    desktopFile.value = null
+    mobileFile.value = null
+    
+    const dInput = document.getElementById('desktopInput') as HTMLInputElement | null
+    if (dInput) dInput.value = ''
+    
+    const mInput = document.getElementById('mobileInput') as HTMLInputElement | null
+    if (mInput) mInput.value = ''
 }
 
 /* =========================
@@ -178,7 +235,16 @@ async function deleteBanner(id: string, desktopUrl: string, mobileUrl: string | 
     }
 }
 
-onMounted(() => {
+onMounted(async () => {
+    const { role, fetchRole } = useUserRole()
+    await fetchRole()
+
+    if (role.value !== 'super_admin') {
+        toast.error('Acesso restrito. Apenas Super Admins podem gerenciar banners.')
+        navigateTo('/home')
+        return
+    }
+
     carregarBanners()
 })
 </script>
@@ -194,9 +260,11 @@ onMounted(() => {
             </p>
         </div>
 
-        <!-- FORMULÁRIO CREATE -->
+        <!-- FORMULÁRIO CREATE / EDIT -->
         <div class="bg-slate-800 rounded-xl shadow-lg p-6 space-y-5">
-            <h2 class="text-lg font-semibold text-white border-b border-slate-700 pb-2">Novo Banner</h2>
+            <h2 class="text-lg font-semibold text-white border-b border-slate-700 pb-2">
+                {{ isEditing ? 'Editando Propaganda' : 'Nova Propaganda' }}
+            </h2>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
@@ -216,7 +284,10 @@ onMounted(() => {
                 <div>
                     <label class="block text-sm font-medium text-white mb-1">
                         Imagem para o Rodapé (Computador)
-                        <span class="block text-[10px] text-gray-400 mt-0.5">Tamanho Ideal: 1920x200 ou 1200x150 (Retagulo Bem Esticado)</span>
+                        <span class="block text-[10px] text-gray-400 mt-0.5">
+                            <template v-if="isEditing">Deixe em branco para manter a imagem atual</template>
+                            <template v-else>Tamanho Ideal: 1920x200 ou 1200x150 (Retângulo Bem Esticado)</template>
+                        </span>
                     </label>
                     <input 
                         id="desktopInput"
@@ -237,7 +308,10 @@ onMounted(() => {
                 <div>
                     <label class="block text-sm font-medium text-white mb-1">
                         Imagem para o Pop-Up (Celular)
-                        <span class="block text-[10px] text-gray-400 mt-0.5">Tamanho Ideal: 1080x1080 (Quadrado) ou 1080x1350 (Retrato)</span>
+                        <span class="block text-[10px] text-gray-400 mt-0.5">
+                            <template v-if="isEditing">Deixe em branco para manter a imagem atual</template>
+                            <template v-else>Tamanho Ideal: 1080x1080 (Quadrado) ou 1080x1350 (Retrato)</template>
+                        </span>
                     </label>
                     <input 
                         id="mobileInput"
@@ -255,14 +329,25 @@ onMounted(() => {
                 </div>
             </div>
 
-            <!-- BOTÃO SALVAR -->
-            <button
-                @click="cadastrarBanner"
-                :disabled="uploading"
-                class="bg-[#D85A1A] text-white px-6 py-2 rounded transition-all duration-300 hover:bg-[#B94814] disabled:opacity-50"
-            >
-                {{ uploading ? 'Fazendo Upload...' : 'Salvar Propaganda' }}
-            </button>
+            <!-- BOTÃO SALVAR / CANCELAR -->
+            <div class="flex space-x-3">
+                <button
+                    @click="cadastrarBanner"
+                    :disabled="uploading"
+                    class="bg-[#D85A1A] text-white px-6 py-2 rounded transition-all duration-300 hover:bg-[#B94814] disabled:opacity-50"
+                >
+                    {{ uploading ? 'Salvando...' : (isEditing ? 'Salvar Alterações' : 'Salvar Propaganda') }}
+                </button>
+
+                <button
+                    v-if="isEditing"
+                    @click="cancelarEdicao"
+                    :disabled="uploading"
+                    class="bg-gray-600 text-white px-6 py-2 rounded transition-all duration-300 hover:bg-gray-500 disabled:opacity-50"
+                >
+                    Cancelar Edição
+                </button>
+            </div>
         </div>
 
         <!-- LISTAGEM DOS BANNERS -->
@@ -306,6 +391,14 @@ onMounted(() => {
 
                         <!-- AÇÕES -->
                         <div class="mt-auto pt-4 flex space-x-2">
+                            <button 
+                                @click="editarBanner(banner)"
+                                class="bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white px-3 rounded text-sm transition"
+                                title="Editar Propaganda"
+                            >
+                                ✏️
+                            </button>
+
                             <button 
                                 @click="toggleActive(banner.id, banner.active)"
                                 class="flex-1 py-1.5 rounded text-sm font-medium transition"

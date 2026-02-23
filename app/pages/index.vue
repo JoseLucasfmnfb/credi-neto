@@ -28,6 +28,16 @@ async function loginWithEmail() {
 
     await navigateTo('/home')
 }
+
+// Redireciona usuários já logados que caiam na home por e-mail confirmation (Magic Links/Signups)
+const user = useSupabaseUser()
+import { watchEffect } from 'vue'
+
+watchEffect(() => {
+    if (user.value) {
+        navigateTo('/home')
+    }
+})
 </script>
 
 <template>

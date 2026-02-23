@@ -4,7 +4,7 @@ const { toasts, removeToast } = useToast()
 
 <template>
     <ClientOnly>
-        <div class="fixed top-5 right-5 z-[9999] flex flex-col space-y-3 pointer-events-none">
+        <div class="fixed top-5 right-5 z-[9999] w-[90vw] sm:w-96 flex flex-col space-y-3 pointer-events-none">
             <TransitionGroup 
                 enter-active-class="transform ease-out duration-300 transition"
                 enter-from-class="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-4"

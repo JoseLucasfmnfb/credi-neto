@@ -34,8 +34,12 @@ export default defineEventHandler(async (event) => {
     })
 
 
-    if (createErrorAuth || !newUser.user) {
-        throw createError({ statusCode: 500, statusMessage: 'Erro ao criar usuário no Auth' })
+    if (createErrorAuth || !newUser?.user) {
+        console.error('Supabase Auth Error:', createErrorAuth)
+        throw createError({
+            statusCode: 400,
+            statusMessage: createErrorAuth?.message || 'Erro desconhecido ao criar usuário no Auth'
+        })
     }
 
 

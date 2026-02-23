@@ -11,22 +11,12 @@ const toast = useToast()
 const usuarios = ref<Profile[]>([])
 const loading = ref(false)
 
-const myRole = ref<string | null>(null)
+const { role: myRole, fetchRole } = useUserRole()
 
-/* =========================
-   BUSCAR MINHA ROLE
-========================= */
-async function buscarMinhaRole() {
-    if (!user.value) return
-
-    const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.value.id)
-        .single()
-
-    myRole.value = data?.role || null
-}
+// Estados de Edição Inline
+const editingId = ref<string | null>(null)
+const editData = ref({ full_name: '', role: '' })
+const savingId = ref<string | null>(null)
 
 /* =========================
    CARREGAR USUÁRIOS
@@ -56,40 +46,88 @@ async function carregarUsuarios() {
 }
 
 /* =========================
-   ATUALIZAR ROLE
+   AÇÕES DE EDIÇÃO INLINE
 ========================= */
-async function atualizarRole(userId: string, novoRole: string) {
-    if (!myRole.value) return
+function startEdit(u: Profile) {
+    editingId.value = u.id
+    editData.value = {
+        full_name: u.full_name || '',
+        role: u.role || 'cliente'
+    }
+}
 
-    // FUNCIONÁRIO NÃO PODE PROMOVER
+function cancelEdit() {
+    editingId.value = null
+}
+
+async function saveEdit(userId: string) {
+    let currentRole = myRole.value;
+    if (!currentRole) {
+        if (!user.value) {
+            toast.error('Sessão expirada. Recarregue a página.');
+            return;
+        }
+        
+        // Extração segura do ID do administrador logado
+        const adminId = user.value.id || (user.value as any).user?.id || (user.value as any).sub
+        
+        if (!adminId) {
+            toast.error('Sessão inválida. Faça login novamente.');
+            return;
+        }
+
+        const { data } = await supabase.from('profiles').select('role').eq('id', adminId).single();
+        if (data && data.role) currentRole = data.role;
+    }
+
+    if (!currentRole) {
+        toast.error('Cargo do usuário logado não identificado.');
+        return;
+    }
+
+    // FUNCIONÁRIO NÃO PODE PROMOVER ADMIN E SUPER_ADMIN
     if (
-        myRole.value === 'funcionario' &&
-        (novoRole === 'admin' || novoRole === 'super_admin')
+        currentRole === 'funcionario' &&
+        (editData.value.role === 'admin' || editData.value.role === 'super_admin')
     ) {
-        toast.error('Você não tem permissão para promover usuários.')
+        toast.error('Você não tem permissão para promover usuários a Admin ou Super Admin.')
         return
     }
 
-    const { error } = await supabase
-        .from('profiles')
-        .update({ role: novoRole })
-        .eq('id', userId)
+    savingId.value = userId
 
-    if (error) {
-        console.error('Erro ao atualizar role:', error)
-        toast.error('Erro ao atualizar cargo do usuário.')
-        return
+    try {
+        const session = useSupabaseSession()
+        const token = session.value?.access_token
+
+        await $fetch('/api/admin/editar-usuario', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+            body: {
+                userId: userId,
+                fullName: editData.value.full_name,
+                role: editData.value.role
+            }
+        })
+        
+        toast.success('Usuário atualizado com sucesso!')
+        editingId.value = null
+        carregarUsuarios()
+    } catch (error: any) {
+        console.error('Erro ao atualizar usuário:', error)
+        toast.error(error.data?.statusMessage || 'Erro ao atualizar usuário. Tente novamente.')
+    } finally {
+        savingId.value = null
     }
-
-    toast.success('Cargo atualizado com sucesso!')
-    carregarUsuarios()
 }
 
 /* =========================
    INIT
 ========================= */
 async function init() {
-    await buscarMinhaRole()
+    await fetchRole()
     await carregarUsuarios()
 }
 
@@ -121,14 +159,15 @@ onMounted(() => {
         <!-- TABELA -->
         <div v-if="!loading" class="bg-slate-800 rounded-xl shadow-lg overflow-hidden">
 
-            <table class="w-full text-sm">
+            <table class="w-full text-sm table-fixed">
                 <thead class="bg-slate-700 text-white">
                     <tr>
-                        <th class="text-left px-4 py-3">Nome</th>
-                        <th class="text-left px-4 py-3">Email</th>
-                        <th class="text-left px-4 py-3">Saldo</th>
-                        <th class="text-left px-4 py-3">Cargo</th>
-                        <th class="text-left px-4 py-3">Criado em</th>
+                        <th class="w-[25%] text-left px-4 py-3">Nome</th>
+                        <th class="w-[20%] text-left px-4 py-3">Email</th>
+                        <th class="w-[15%] text-left px-4 py-3 pl-2">Saldo</th>
+                        <th class="w-[15%] text-left px-4 py-3">Cargo</th>
+                        <th class="w-[10%] text-left px-4 py-3">Criado em</th>
+                        <th class="w-[15%] text-right px-4 py-3">Ações</th>
                     </tr>
                 </thead>
 
@@ -136,47 +175,69 @@ onMounted(() => {
                     <tr
                         v-for="u in usuarios"
                         :key="u.id"
-                        class="border-t border-slate-700 hover:bg-slate-700/50 transition"
+                        class="border-t border-slate-700 hover:bg-slate-700/50 transition h-[60px]"
                     >
                         <!-- NOME -->
-                        <td class="px-4 py-3 text-white">
-                            {{ u.full_name || '—' }}
+                        <td class="px-4 text-white h-[60px] align-middle">
+                            <span v-if="editingId !== u.id">{{ u.full_name || '—' }}</span>
+                            <input 
+                                v-else 
+                                v-model="editData.full_name" 
+                                type="text" 
+                                class="form-input-small w-full" 
+                            />
                         </td>
 
                         <!-- EMAIL -->
-                        <td class="px-4 py-3 text-gray-300">
+                        <td class="px-4 text-gray-300 h-[60px] align-middle">
                             {{ u.email }}
                         </td>
 
                         <!-- BALANCE -->
-                        <td class="px-4 py-3 font-medium" :class="u.credit_accounts?.[0]?.balance < 0 ? 'text-red-400' : 'text-green-400'">
-                            R$ {{ u.credit_accounts?.[0]?.balance?.toFixed(2).replace('.', ',') || '0,00' }}
+                        <td class="px-4 font-medium h-[60px] align-middle" :class="(u.credit_accounts?.balance || 0) < 0 ? 'text-red-400' : 'text-green-400'">
+                            R$ {{ (u.credit_accounts?.balance || 0).toFixed(2).replace('.', ',') }}
                         </td>
 
                         <!-- ROLE -->
-                        <td class="px-4 py-3">
+                        <td class="px-4 h-[60px] align-middle">
+                            <span v-if="editingId !== u.id" class="capitalize">{{ u.role.replace('_', ' ') }}</span>
                             <select
-                                :value="u.role"
+                                v-else
+                                v-model="editData.role"
                                 :disabled="u.id === user?.id"
-                                @change="atualizarRole(u.id, ($event.target as HTMLSelectElement).value)"
-                                class="form-input-small"
+                                class="form-input-small w-full"
                             >
                                 <option value="cliente">Cliente</option>
                                 <option value="funcionario">Funcionário</option>
-                                <option value="admin">Admin</option>
-                                <option value="super_admin">Super Admin</option>
+                                <option v-if="myRole === 'admin' || myRole === 'super_admin'" value="admin">Admin</option>
+                                <option v-if="myRole === 'super_admin'" value="super_admin">Super Admin</option>
                             </select>
                         </td>
 
                         <!-- DATA -->
-                        <td class="px-4 py-3 text-gray-400">
+                        <td class="px-4 text-gray-400 h-[60px] align-middle">
                             {{ u.created_at ? new Date(u.created_at).toLocaleDateString() : '—' }}
+                        </td>
+
+                        <!-- AÇÕES -->
+                        <td class="px-4 text-right h-[60px] align-middle">
+                            <template v-if="myRole === 'admin' || myRole === 'super_admin'">
+                                <div v-if="editingId !== u.id">
+                                    <button @click="startEdit(u)" class="text-[#D85A1A] hover:text-[#B94814] font-medium transition">Editar</button>
+                                </div>
+                                <div v-else class="flex space-x-3 justify-end items-center">
+                                    <button @click="cancelEdit" class="text-gray-400 hover:text-gray-300 transition" :disabled="savingId === u.id">Cancelar</button>
+                                    <button @click="saveEdit(u.id)" class="text-green-500 hover:text-green-400 font-bold transition" :disabled="savingId === u.id">
+                                        {{ savingId === u.id ? 'Sal...' : 'Salvar' }}
+                                    </button>
+                                </div>
+                            </template>
                         </td>
                     </tr>
 
                     <!-- VAZIO -->
                     <tr v-if="usuarios.length === 0">
-                        <td colspan="4" class="text-center text-gray-400 py-6">
+                        <td colspan="6" class="text-center text-gray-400 py-6">
                             Nenhum usuário encontrado.
                         </td>
                     </tr>

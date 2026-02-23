@@ -4,7 +4,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 const supabase = useSupabaseClient()
 const router = useRouter()
 
-const { role, fetchRole } = useUserRole()
+const { role, fullName, fetchRole } = useUserRole()
 
 /* =========================
    CONTROLE DE TEMA
@@ -49,12 +49,12 @@ onBeforeUnmount(() => {
 
 async function logout() {
     await supabase.auth.signOut()
-    await router.push('/')
+    await navigateTo('/')
 }
 </script>
 
 <template>
-    <div class="min-h-screen flex" :class="{
+    <div class="h-screen flex overflow-hidden lg:overflow-hidden" :class="{
         'bg-gray-100': theme === 'orange' || theme === 'neutral',
         'bg-gray-900': theme === 'dark'
     }">
@@ -78,7 +78,7 @@ async function logout() {
             </div>
 
             <!-- MENU -->
-            <nav class="flex-1 p-4 space-y-2">
+            <nav class="flex-1 overflow-y-auto p-4 space-y-2">
 
                 <NuxtLink to="/home" class="block px-3 py-2 rounded transition-all duration-300" :class="{
                     'hover:bg-[#B94814]': theme === 'orange',
@@ -96,47 +96,50 @@ async function logout() {
                     💰 Meu saldo
                 </NuxtLink>
 
-                <NuxtLink to="/admin/gerenciar-creditos" class="block px-3 py-2 rounded transition-all duration-300"
-                    :class="{
+                <template v-if="role !== 'cliente'">
+                    <NuxtLink to="/admin/gerenciar-creditos" class="block px-3 py-2 rounded transition-all duration-300"
+                        :class="{
+                            'hover:bg-[#B94814]': theme === 'orange',
+                            'hover:bg-gray-700': theme === 'dark',
+                            'hover:bg-gray-400': theme === 'neutral'
+                        }">
+                        ➕ Gerenciar créditos
+                    </NuxtLink>
+
+                    <NuxtLink to="/admin/usuarios" class="block px-3 py-2 rounded transition-all duration-300" :class="{
                         'hover:bg-[#B94814]': theme === 'orange',
                         'hover:bg-gray-700': theme === 'dark',
                         'hover:bg-gray-400': theme === 'neutral'
                     }">
-                    ➕ Gerenciar créditos
-                </NuxtLink>
+                        👥 Usuários
+                    </NuxtLink>
 
-                <NuxtLink to="/admin/usuarios" class="block px-3 py-2 rounded transition-all duration-300" :class="{
-                    'hover:bg-[#B94814]': theme === 'orange',
-                    'hover:bg-gray-700': theme === 'dark',
-                    'hover:bg-gray-400': theme === 'neutral'
-                }">
-                    👥 Usuários
-                </NuxtLink>
-
-                <NuxtLink to="/admin/historico" class="block px-3 py-2 rounded transition-all duration-300" :class="{
-                    'hover:bg-[#B94814]': theme === 'orange',
-                    'hover:bg-gray-700': theme === 'dark',
-                    'hover:bg-gray-400': theme === 'neutral'
-                }">
-                    📜 Histórico da Loja
-                </NuxtLink>
-
-                <NuxtLink to="/admin/banners" class="block px-3 py-2 rounded transition-all duration-300" :class="{
-                    'hover:bg-[#B94814]': theme === 'orange',
-                    'hover:bg-gray-700': theme === 'dark',
-                    'hover:bg-gray-400': theme === 'neutral'
-                }">
-                    📢 Gestão de Banners
-                </NuxtLink>
-
-                <NuxtLink to="/admin/cadastrar-usuario" class="block px-3 py-2 rounded transition-all duration-300"
-                    :class="{
+                    <NuxtLink to="/admin/historico" class="block px-3 py-2 rounded transition-all duration-300" :class="{
                         'hover:bg-[#B94814]': theme === 'orange',
                         'hover:bg-gray-700': theme === 'dark',
                         'hover:bg-gray-400': theme === 'neutral'
                     }">
-                    ➕ Cadastrar usuário
-                </NuxtLink>
+                        📜 Histórico da Loja
+                    </NuxtLink>
+
+                    <NuxtLink v-if="role === 'super_admin'" to="/admin/banners"
+                        class="block px-3 py-2 rounded transition-all duration-300" :class="{
+                            'hover:bg-[#B94814]': theme === 'orange',
+                            'hover:bg-gray-700': theme === 'dark',
+                            'hover:bg-gray-400': theme === 'neutral'
+                        }">
+                        📢 Gestão de Banners
+                    </NuxtLink>
+
+                    <NuxtLink to="/admin/cadastrar-usuario" class="block px-3 py-2 rounded transition-all duration-300"
+                        :class="{
+                            'hover:bg-[#B94814]': theme === 'orange',
+                            'hover:bg-gray-700': theme === 'dark',
+                            'hover:bg-gray-400': theme === 'neutral'
+                        }">
+                        ➕ Cadastrar usuário
+                    </NuxtLink>
+                </template>
 
 
             </nav>
@@ -167,8 +170,11 @@ async function logout() {
 
                 <!-- TÍTULO + MENSAGEM -->
                 <div class="flex flex-col">
-                    <h1 class="text-2xl font-bold">
-                        CrediNeto
+                    <h1 class="text-2xl font-bold flex flex-col md:flex-row md:items-baseline md:space-x-3">
+                        <span>CrediNeto</span>
+                        <span v-if="fullName" class="text-sm font-normal opacity-80 hidden md:block">
+                            👋 Olá, {{ fullName }} (<span class="capitalize">{{ role?.replace('_', ' ') }}</span>)
+                        </span>
                     </h1>
 
                     <p class="text-sm opacity-90">
@@ -178,7 +184,7 @@ async function logout() {
                             Aqui você pode acompanhar seus créditos e histórico.
                         </span>
 
-                        <!-- STAFF / ADMIN -->
+                        <!-- OTHERS -->
                         <span v-else>
                             Aqui você pode gerenciar os créditos dos seus jogadores.
                         </span>
@@ -234,7 +240,7 @@ async function logout() {
             </header>
 
             <!-- CONTEÚDO -->
-            <main class="flex-1 p-6 md:pb-32" :class="{
+            <main class="flex-1 flex flex-col overflow-y-auto p-6 md:pb-32" :class="{
                 'bg-gray-100': theme === 'orange' || theme === 'neutral',
                 'bg-gray-900 text-white': theme === 'dark'
             }">
