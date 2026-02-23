@@ -144,16 +144,22 @@ async function logout() {
 
             </nav>
 
-            <!-- LOGOUT -->
+            <!-- LOGOUT & CREDITS -->
             <div class="p-4 border-t" :class="{
                 'border-orange-300': theme === 'orange',
                 'border-gray-700': theme === 'dark',
                 'border-gray-400': theme === 'neutral'
             }">
                 <button @click="logout" class="w-full py-2 rounded font-medium transition-all duration-300
-                           bg-gray-600 hover:bg-gray-700 text-white">
-                    Sair
+                           bg-gray-600 hover:bg-gray-700 text-white mb-3 shadow-md">
+                    Sair da Conta
                 </button>
+
+                <div class="text-[10px] text-center opacity-60 flex flex-col items-center">
+                    <span>Desenvolvido por</span>
+                    <a href="https://github.com/JoseLucasfmnfb" target="_blank" class="font-bold hover:underline">José
+                        Lucas</a>
+                </div>
             </div>
 
         </aside>
@@ -172,8 +178,11 @@ async function logout() {
                 <div class="flex flex-col">
                     <h1 class="text-2xl font-bold flex flex-col md:flex-row md:items-baseline md:space-x-3">
                         <span>CrediNeto</span>
-                        <span v-if="fullName" class="text-sm font-normal opacity-80 hidden md:block">
-                            👋 Olá, {{ fullName }} (<span class="capitalize">{{ role?.replace('_', ' ') }}</span>)
+                        <span v-if="fullName"
+                            class="text-base md:text-lg font-medium tracking-wide hidden md:block px-3 py-1 rounded shadow-sm inset-0 bg-white/10 border border-white/20">
+                            👋 Olá, <strong>{{ fullName }}</strong> <span
+                                class="text-sm font-normal opacity-75 capitalize">({{
+                                role?.replace('_', ' ') }})</span>
                         </span>
                     </h1>
 
