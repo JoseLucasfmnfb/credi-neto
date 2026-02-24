@@ -8,6 +8,19 @@ export default defineNuxtConfig({
         '@nuxtjs/supabase'
     ],
 
+    // Fallback vazio no build, será preenchido pelo NUXT_PUBLIC_SUPABASE_URL e afins em runtime
+    runtimeConfig: {
+        supabase: {
+            serviceKey: '',
+        },
+        public: {
+            supabase: {
+                url: '',
+                key: '',
+            }
+        }
+    },
+
     supabase: {
         redirect: false
     },

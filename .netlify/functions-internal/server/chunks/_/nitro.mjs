@@ -4249,7 +4249,7 @@ function _expandFromEnv(value) {
 const _inlineRuntimeConfig = {
   "app": {
     "baseURL": "/",
-    "buildId": "71e35d6e-b752-4243-a5be-07ef3a80f0b6",
+    "buildId": "091ea1c8-c10f-461b-977d-ec4cf7bf674a",
     "buildAssetsDir": "/_nuxt/",
     "cdnURL": ""
   },
@@ -4279,8 +4279,8 @@ const _inlineRuntimeConfig = {
   },
   "public": {
     "supabase": {
-      "url": "https://paeayfnxzwfixipwokjg.supabase.co",
-      "key": "sb_publishable_9jTJGGf5RCftMgch3RkNqQ_DqkPFBh6",
+      "url": "",
+      "key": "",
       "redirect": false,
       "redirectOptions": {
         "login": "/login",
@@ -4290,7 +4290,7 @@ const _inlineRuntimeConfig = {
         "saveRedirectToCookie": false
       },
       "cookieName": "sb",
-      "cookiePrefix": "sb-paeayfnxzwfixipwokjg-auth-token",
+      "cookiePrefix": "",
       "useSsrCookies": true,
       "cookieOptions": {
         "maxAge": 28800,
@@ -4302,7 +4302,7 @@ const _inlineRuntimeConfig = {
   },
   "supabase": {
     "serviceKey": "",
-    "secretKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhZWF5Zm54endmaXhpcHdva2pnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTA0MDM5NSwiZXhwIjoyMDg0NjE2Mzk1fQ.0r5MfDj3LJBgZXXsI3_mKTfmh_fpTxGPO5mEu35oteU"
+    "secretKey": ""
   }
 };
 const envOptions = {
